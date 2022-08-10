@@ -1,0 +1,263 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider        = "prisma-client-js"
+}
+
+enum UserRole {
+  admin
+  user
+}
+
+model PremiumPass {
+  id    String  @id @db.Uuid() 
+  user_id String @db.Uuid()
+  used Boolean @default(false)
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  
+  @@map("premium_passes")
+}
+
+model Log {
+  id    String  @id @db.Uuid() 
+  user_id String @db.Uuid() 
+  user User @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  content String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("logs")
+}
+
+model User {
+  id    String  @id @db.Uuid() 
+  username        String  @unique
+  email       String  @unique
+  password    String
+  wallet String? @unique
+  role UserRole @default(user)
+  enabled Boolean @default(true)
+  mcm Int @default(0)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  owner_weapons UserWeapon[] @relation("owner_weapons")
+  owner_chests Chest[] @relation("owner_chests")
+  owner_characters UserCharacter[] @relation("owner_characters")
+  tokens   UserToken[]
+  premium_pass PremiumPass?
+  weapons UserWeapon[] @relation("user_weapons")
+  chests Chest[] @relation("user_chests")
+  characters UserCharacter[] @relation("user_characters")
+  purchases Purchase[]
+  transactions Transaction[]
+  logs Log[]
+
+  @@map("users")
+}
+
+enum Rarity {
+  common
+  rare
+  epic
+  legendary
+  superlegendary
+}
+
+model Weapon {
+  id String  @id @db.Uuid() 
+
+  user_weapons UserWeapon[]
+
+  name String 
+  image String? 
+  base_atk_physical Int 
+  base_atk_magical Int 
+  base_def_physical Int 
+  base_def_magical Int 
+  base_speed Int 
+  base_health Int 
+  base_crit_chance Int 
+  
+  energy Int 
+  level Int 
+  character_id String @db.Uuid()
+  character Character @relation(fields: [character_id], references: [id], onDelete: Cascade)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("weapons")
+}
+
+model UserWeapon {
+  id String @id @db.Uuid()
+
+  owner_id String @db.Uuid()
+  user_id String @db.Uuid()
+  weapon_id String @db.Uuid()
+
+  owner User @relation("owner_weapons", fields: [owner_id], references: [id], onDelete: SetNull)
+  user User @relation("user_weapons", fields: [user_id], references: [id], onDelete: SetNull)
+  weapon Weapon @relation(fields: [weapon_id], references: [id], onDelete: Cascade)
+
+  rarity Rarity
+
+  token String
+
+  actual_atk_physical Int
+  actual_atk_magical Int
+  actual_def_physical Int
+  actual_def_magical Int
+  actual_speed Int
+  actual_health Int
+  actual_crit_chance Int
+  energy Int
+  level Int
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("user_weapons")
+}
+
+model Character {
+  id String @id @db.Uuid()
+
+  user_characters UserCharacter[]
+  
+  name  String
+  image String?
+  base_atk_physical Int
+  base_atk_magical Int
+  base_def_physical Int
+  base_def_magical Int
+  base_speed Int
+  base_health Int
+  base_crit_chance Int
+ 
+  energy Int
+  level Int
+  weapon Weapon?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("characters")
+}
+
+model UserCharacter {
+  id String @id @db.Uuid()
+
+  owner_id String @db.Uuid()
+  user_id String @db.Uuid()
+  character_id String @db.Uuid()
+
+  token String
+  owner User @relation("owner_characters", fields: [owner_id], references: [id], onDelete: SetNull)
+  user User @relation("user_characters", fields: [user_id], references: [id], onDelete: SetNull)
+  character Character @relation(fields: [character_id], references: [id], onDelete: Cascade)
+
+  rarity Rarity
+  
+  actual_atk_physical Int
+  actual_atk_magical Int
+  actual_def_physical Int
+  actual_def_magical Int
+  actual_speed Int
+  actual_health Int
+  actual_crit_chance Int
+  energy Int
+  level Int
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("user_characters")
+}
+
+enum ChestType {
+  character
+  weapon
+}
+
+model Chest {
+  id String @id @db.Uuid()
+  owner_id String @db.Uuid()
+  user_id String @db.Uuid()
+  token String
+  rarity Rarity
+  type ChestType
+  influencer Boolean @default(false)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  
+  owner User @relation("owner_chests", fields: [owner_id], references: [id], onDelete: SetNull)
+  user User @relation("user_chests", fields: [user_id], references: [id], onDelete: SetNull)
+
+  @@map("chests")
+}
+
+enum SaleType  {
+  character
+  weapon
+  both
+}
+
+model Sale {
+  id String @id @db.Uuid()
+  start_date DateTime
+  end_date DateTime?
+  type SaleType
+  price Float
+  crypto String
+  quantity Int
+  common_rate Int
+  rare_rate Int
+  epic_rate Int
+  legendary_rate Int
+  super_legendary_rate Int
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  purchases Purchase[]
+
+  @@map("sales")
+}
+
+model UserToken {
+  id String @id @db.Uuid()
+  user_id String @db.Uuid()
+  token String @unique
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  @@map("user_tokens")
+}
+
+model Transaction {
+  id String @id @db.Uuid()
+  wallet String
+  tx_hash String @unique
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  user User @relation(fields: [wallet], references: [wallet], onDelete: NoAction)
+
+  @@map("transactions")
+}
+
+model Purchase  {
+  id String @id @db.Uuid()
+  user_id String @db.Uuid()
+  sale_id String @db.Uuid()
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  sale Sale @relation(fields: [sale_id], references: [id], onDelete: Cascade)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("purchases")
+}
